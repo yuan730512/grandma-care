@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>阿嬤照護日誌</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --teal:#1D9E75;--teal-l:#E1F5EE;--teal-d:#085041;
+  --red:#E24B4A;--red-l:#FCEBEB;--red-d:#A32D2D;
+  --amber:#BA7517;--amber-l:#FAEEDA;--amber-d:#633806;
+  --gray:#888780;--gray-l:#F1EFE8;
+  --blue:#378ADD;--blue-l:#E6F1FB;--blue-d:#185FA5;
+  --purple:#534AB7;--purple-l:#EEEDFE;--purple-d:#26215C;
+  --green:#639922;--green-l:#EAF3DE;--green-d:#3B6D11;
+  --bg:#f5f4f0;--text:#2C2C2A;--muted:#5F5E5A;
+  --border:rgba(0,0,0,0.1);--sh:0 2px 12px rgba(0,0,0,0.08);
+}
+html,body{height:100%;margin:0;padding:0}
+body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);max-width:430px;margin:0 auto;overflow-x:hidden}
+.pg{display:none;min-height:100vh}
+.pg.on{display:block}
+#pg-login.on{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;background:linear-gradient(160deg,#1D9E75 0%,#085041 100%)}
+.l-logo{font-size:58px;margin-bottom:10px}
+.l-title{font-size:25px;font-weight:700;color:#fff;margin-bottom:4px}
+.l-sub{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:32px}
+.l-card{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.22)}
+.lf{margin-bottom:15px}
+.lf label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.li{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:16px;font-family:inherit;color:var(--text);outline:none;background:var(--bg);transition:border .15s}
+.li:focus{border-color:var(--teal);background:#fff}
+.l-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;font-family:inherit}
+.l-err{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:18px}
+.hd{background:var(--teal);color:#fff;padding:14px 18px 12px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.hd-back{background:rgba(255,255,255,.2);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hd-title{font-size:17px;font-weight:600;flex:1}
+.hd-sub{font-size:12px;opacity:.82;margin-top:1px}
+.hd-action{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+/* CALENDAR */
+.cal-wrap{padding:14px 14px 28px}
+.ab{border-radius:10px;padding:11px 14px;margin-bottom:13px}
+.ab.warn{background:var(--red-l);border-left:4px solid var(--red)}
+.ab.good{background:var(--teal-l);border-left:4px solid var(--teal)}
+.ab-txt{font-size:13px;line-height:1.5}
+.ab.warn .ab-txt{color:var(--red-d)}
+.ab.good .ab-txt{color:var(--teal-d)}
+.ab-txt strong{display:block;font-weight:600;margin-bottom:2px}
+.sum-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.sc{background:#fff;border-radius:12px;padding:13px 14px;box-shadow:var(--sh)}
+.sc-label{font-size:12px;color:var(--muted);margin-bottom:3px}
+.sc-val{font-size:22px;font-weight:700}
+.sc-val.danger{color:var(--red)}
+.sc-val.ok{color:var(--teal)}
+.go-btn{display:block;width:100%;background:var(--teal);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit;box-shadow:0 3px 12px rgba(29,158,117,.3)}
+.cn{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.cm{font-size:18px;font-weight:600}
+.ca{background:#fff;border:1px solid var(--border);width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.cg{background:#fff;border-radius:14px;box-shadow:var(--sh);overflow:hidden}
+.cwd{display:grid;grid-template-columns:repeat(7,1fr);background:var(--teal)}
+.cw{text-align:center;padding:9px 0;font-size:12px;font-weight:600;color:#fff}
+.cd-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:7px;gap:3px}
+.cday{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-radius:9px;transition:background .15s}
+.cday:hover{background:var(--teal-l)}
+.cday.today{background:var(--teal)}
+.cday.today .dn{color:#fff;font-weight:700}
+.cday.empty{cursor:default}
+.dn{font-size:14px;color:var(--text);line-height:1}
+.ddots{display:flex;gap:2px;margin-top:3px}
+.dot{width:5px;height:5px;border-radius:50%}
+.dot-t{background:var(--teal)}
+.dot-o{background:#E07020}
+
+/* TASKS */
+.tw{padding:12px 14px 28px}
+.tl-alert{background:var(--red-l);border-radius:12px;padding:12px 13px;margin-bottom:11px;border:1px solid rgba(226,75,74,.2)}
+.tl-at{font-size:13px;font-weight:600;color:var(--red-d);margin-bottom:6px}
+.tl-ai{font-size:13px;color:var(--red-d);padding:3px 0;display:flex;align-items:center;gap:8px}
+.tl-ai::before{content:'!';background:var(--red);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ro-bar{background:var(--blue-l);border-left:4px solid var(--blue);border-radius:10px;padding:10px 13px;margin-bottom:11px;font-size:13px;color:var(--blue-d);font-weight:600}
+.tc{background:#fff;border-radius:12px;margin-bottom:7px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;cursor:pointer;transition:transform .12s}
+.tc:active{transform:scale(.98)}
+.tc.req{border-left:4px solid var(--red)}
+.tc.req.done{border-left:4px solid var(--teal)}
+.tc.norm{border-left:4px solid var(--gray)}
+.tc.norm.done{border-left:4px solid var(--teal)}
+.tc.summary{border-left:4px solid var(--purple)}
+.tc.summary.done{border-left:4px solid var(--teal)}
+.ti{padding:12px 13px;display:flex;align-items:center;gap:11px}
+.tck{width:25px;height:25px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tc.done .tck{background:var(--teal);border-color:var(--teal)}
+.tm{font-size:13px;color:#fff;display:none}
+.tc.done .tm{display:block}
+.tb{flex:1;min-width:0}
+.tn{font-size:15px;font-weight:500;margin-bottom:2px}
+.tc.done .tn{text-decoration:line-through;color:var(--muted)}
+.tt{font-size:12px;color:var(--muted)}
+.tni{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:1px}
+.tbdg{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.bdg{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px}
+.b-req{background:var(--red-l);color:var(--red-d)}
+.b-done{background:var(--teal-l);color:var(--teal-d)}
+.b-bp{background:var(--purple-l);color:var(--purple-d)}
+.b-note{background:var(--amber-l);color:var(--amber-d)}
+.b-photo{background:var(--blue-l);color:var(--blue-d)}
+.b-sum{background:var(--purple-l);color:var(--purple-d)}
+.tarr{color:var(--gray);font-size:16px;flex-shrink:0}
+
+/* DETAIL */
+.dw{padding:14px 14px 32px}
+.dc{background:#fff;border-radius:14px;box-shadow:var(--sh);overflow:hidden;margin-bottom:12px}
+.ds{padding:15px;border-bottom:1px solid var(--border)}
+.ds:last-child{border-bottom:none}
+.dl{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.dtn{font-size:20px;font-weight:700;margin-bottom:4px}
+.dtime{font-size:14px;color:var(--muted)}
+.dnote-cn{font-size:14px;background:var(--gray-l);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.6}
+.dnote-id{font-size:13px;color:var(--muted);background:var(--blue-l);border-radius:8px;padding:10px 12px;margin-top:6px;line-height:1.6;font-style:italic}
+.req-chip{display:inline-flex;align-items:center;background:var(--red-l);color:var(--red-d);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:8px}
+.sum-chip{display:inline-flex;align-items:center;background:var(--purple-l);color:var(--purple-d);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:8px}
+.dtog{display:flex;gap:9px}
+.d-btn{flex:1;padding:13px;border-radius:12px;border:2px solid var(--border);background:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;color:var(--muted);font-family:inherit}
+.d-btn.yes{background:var(--teal);border-color:var(--teal);color:#fff}
+.d-btn.no{background:var(--red-l);border-color:var(--red);color:var(--red-d)}
+.note-ta{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);resize:none;min-height:100px;outline:none;transition:border .15s}
+.note-ta:focus{border-color:var(--teal)}
+.ro-note{font-size:14px;line-height:1.6;color:var(--text);background:var(--gray-l);border-radius:10px;padding:11px;white-space:pre-wrap}
+.trans-box{background:var(--teal-l);border-radius:10px;padding:11px;margin-top:8px;font-size:14px;color:var(--teal-d);line-height:1.6}
+.trans-label{font-size:11px;font-weight:700;color:var(--teal-d);margin-bottom:4px;opacity:.7}
+.ph-area{border:2px dashed var(--border);border-radius:12px;padding:18px;text-align:center;cursor:pointer;background:var(--gray-l)}
+.ph-area-txt{font-size:14px;color:var(--muted);margin-top:5px}
+.ph-prev{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+.ph-wrap{position:relative;display:inline-block}
+.ph-img{width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--border);display:block}
+.ph-del{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;width:20px;height:20px;border-radius:50%;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+input[type=file]{display:none}
+.save-btn{display:block;width:100%;background:var(--teal);color:#fff;border:none;border-radius:13px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(29,158,117,.3);font-family:inherit}
+.bp-box{background:var(--bg);border-radius:12px;padding:14px;border:1px solid var(--border)}
+.bp-title{font-size:14px;font-weight:600;margin-bottom:12px}
+.bp-row{display:flex;gap:8px;align-items:flex-end}
+.bpf{flex:1}
+.bpf label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;font-weight:600}
+.bpi{width:100%;border:1.5px solid var(--border);border-radius:9px;padding:10px 8px;font-size:20px;font-weight:700;font-family:inherit;color:var(--text);background:#fff;outline:none;text-align:center;transition:border .15s}
+.bpi:focus{border-color:var(--teal)}
+.bpi:disabled{background:var(--gray-l);color:var(--muted)}
+.bp-unit{font-size:13px;color:var(--muted);padding-bottom:10px;flex-shrink:0}
+.bp-ts{font-size:12px;color:var(--muted);margin-top:8px}
+.bp-st{display:inline-block;margin-top:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+.bp-ok{background:var(--teal-l);color:var(--teal-d)}
+.bp-hi{background:var(--red-l);color:var(--red-d)}
+.bp-lo{background:var(--amber-l);color:var(--amber-d)}
+.bp-save{width:100%;margin-top:11px;background:var(--teal);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* BP HISTORY */
+.bph{padding:14px 14px 28px}
+.tabs{display:flex;background:#fff;border-radius:12px;padding:4px;box-shadow:var(--sh);margin-bottom:13px;gap:4px}
+.tab{flex:1;padding:9px;border:none;border-radius:9px;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s}
+.tab.on{background:var(--teal);color:#fff}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.sc2{background:#fff;border-radius:12px;padding:13px 14px;box-shadow:var(--sh)}
+.sc2-l{font-size:12px;color:var(--muted);margin-bottom:3px}
+.sc2-n{font-size:20px;font-weight:700}
+.sc2-n.ok{color:var(--teal)}
+.sc2-n.warn{color:var(--red)}
+.sc2-s{font-size:11px;color:var(--muted);margin-top:2px}
+.chart-card{background:#fff;border-radius:12px;box-shadow:var(--sh);padding:14px;margin-bottom:13px}
+.chart-ttl{font-size:13px;font-weight:600;margin-bottom:8px}
+.hc{background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden}
+.hc-date{background:var(--teal);color:#fff;font-size:13px;font-weight:600;padding:8px 14px}
+.he{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.he:last-child{border-bottom:none}
+.he-slot{font-size:12px;font-weight:700;color:var(--muted);width:24px;flex-shrink:0}
+.he-vals{flex:1}
+.he-main{font-size:17px;font-weight:700}
+.he-pulse{font-size:12px;color:var(--muted)}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-ico{font-size:44px;margin-bottom:12px}
+
+/* LEDGER */
+.ldg{padding:14px 14px 28px}
+.bal-card{background:var(--teal);border-radius:16px;padding:20px;margin-bottom:14px;color:#fff;text-align:center}
+.bal-label{font-size:13px;opacity:.85;margin-bottom:4px}
+.bal-amount{font-size:36px;font-weight:700}
+.bal-sub{font-size:12px;opacity:.75;margin-top:4px}
+.ldg-form{background:#fff;border-radius:14px;box-shadow:var(--sh);padding:15px;margin-bottom:13px}
+.ldg-row{display:flex;gap:8px;margin-bottom:10px}
+.ldg-input{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;transition:border .15s}
+.ldg-input:focus{border-color:var(--teal);background:#fff}
+.ldg-amt{width:100px;flex:none}
+.ldg-type-row{display:flex;gap:8px;margin-bottom:10px}
+.type-btn{flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s}
+.type-btn.exp.on{background:var(--red-l);border-color:var(--red);color:var(--red-d)}
+.type-btn.inc.on{background:var(--teal-l);border-color:var(--teal);color:var(--teal-d)}
+.ldg-save{width:100%;background:var(--teal);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.ldg-item{background:#fff;border-radius:12px;margin-bottom:7px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden}
+.ldg-item-inner{padding:12px 14px;display:flex;align-items:center;gap:10px}
+.ldg-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ldg-icon.exp{background:var(--red-l)}
+.ldg-icon.inc{background:var(--teal-l)}
+.ldg-info{flex:1;min-width:0}
+.ldg-name{font-size:14px;font-weight:500}
+.ldg-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.ldg-val{font-size:16px;font-weight:700;flex-shrink:0}
+.ldg-val.exp{color:var(--red)}
+.ldg-val.inc{color:var(--teal)}
+.ldg-del{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px;flex-shrink:0}
+
+.loading{text-align:center;padding:48px 20px;color:var(--muted)}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--teal-d);color:#fff;padding:10px 22px;border-radius:30px;font-size:14px;font-weight:500;opacity:0;transition:all .28s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="pg-login" class="pg on">
+  <div class="l-logo">🌸</div>
+  <div class="l-title">阿嬤照護日誌</div>
+  <div class="l-sub">Jurnal Perawatan Nenek</div>
+  <div class="l-card">
+    <div class="lf"><label>帳號 Username</label><input class="li" id="li-u" type="text" placeholder="caregiver 或 employer" autocomplete="username"></div>
+    <div class="lf"><label>密碼 Password</label><input class="li" id="li-p" type="password" placeholder="請輸入密碼" autocomplete="current-password"></div>
+    <button class="l-btn" onclick="doLogin()">登入 Masuk</button>
+    <div class="l-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- CALENDAR -->
+<div id="pg-cal" class="pg">
+  <div class="hd">
+    <span style="font-size:22px">🌸</span>
+    <div style="flex:1"><div class="hd-title">阿嬤照護日誌</div><div class="hd-sub" id="cal-sub"></div></div>
+    <button class="hd-action" onclick="showBP()" style="margin-right:5px">🩺</button>
+    <button class="hd-action" onclick="showLedger()" style="margin-right:5px">💰</button>
+    <button class="hd-action" onclick="doLogout()">登出</button>
+  </div>
+  <div class="cal-wrap">
+    <div id="cal-alert"></div>
+    <div class="sum-row">
+      <div class="sc"><div class="sc-label">必要未完成</div><div class="sc-val danger" id="sum-miss">…</div></div>
+      <div class="sc"><div class="sc-label">今日完成</div><div class="sc-val ok" id="sum-done">…</div></div>
+    </div>
+    <button class="go-btn" onclick="gotoTasks(new Date())">📋 查看今日任務</button>
+    <div class="cn">
+      <button class="ca" onclick="chMonth(-1)">‹</button>
+      <div class="cm" id="cal-m"></div>
+      <button class="ca" onclick="chMonth(1)">›</button>
+    </div>
+    <div class="cg">
+      <div class="cwd"><div class="cw">日</div><div class="cw">一</div><div class="cw">二</div><div class="cw">三</div><div class="cw">四</div><div class="cw">五</div><div class="cw">六</div></div>
+      <div class="cd-grid" id="cal-days"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TASKS -->
+<div id="pg-tasks" class="pg">
+  <div class="hd">
+    <button class="hd-back" onclick="goBack('pg-cal')">‹</button>
+    <div><div class="hd-title" id="t-title">任務清單</div><div class="hd-sub" id="t-sub"></div></div>
+  </div>
+  <div class="tw" id="tasks-wrap"></div>
+</div>
+
+<!-- DETAIL -->
+<div id="pg-detail" class="pg">
+  <div class="hd">
+    <button class="hd-back" onclick="goBack('pg-tasks')">‹</button>
+    <div><div class="hd-title" id="d-title">任務詳情</div><div class="hd-sub" id="d-sub"></div></div>
+  </div>
+  <div class="dw" id="det-wrap"></div>
+</div>
+
+<!-- BP HISTORY -->
+<div id="pg-bp" class="pg">
+  <div class="hd">
+    <button class="hd-back" onclick="goBack('pg-cal')">‹</button>
+    <div><div class="hd-title">血壓記錄</div><div class="hd-sub">Rekaman Tekanan Darah</div></div>
+  </div>
+  <div class="bph" id="bph-wrap"></div>
+</div>
+
+<!-- LEDGER -->
+<div id="pg-ledger" class="pg">
+  <div class="hd">
+    <button class="hd-back" onclick="goBack('pg-cal')">‹</button>
+    <div><div class="hd-title">記帳</div><div class="hd-sub">Catatan Keuangan</div></div>
+  </div>
+  <div class="ldg" id="ldg-wrap"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL='https://azmarsluqiepgmyjiezn.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6bWFyc2x1cWllcGdteWppZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1NTAxNTEsImV4cCI6MjA5MjEyNjE1MX0.dB-OQUOXumAK7ul3H3OnwoEYMc0CAqlT5DnStxwwiuc';
+const DEEPL_KEY='12f8d1cc-ca1c-4a02-a0c8-233e584330da:fx';
+const db=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+const today=new Date();
+let cMonth=today.getMonth(),cYear=today.getFullYear();
+let selDate=new Date(today),curUser=null,curTid=null,pendingDone=null,bpRange='30';
+let ledgerType='expense';
+const tCache={},bpCache={},photoStore={};
+const MN=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const isEmp=()=>curUser?.role==='employer';
+
+// DeepL translation
+async function translate(text){
+  if(!text||!text.trim())return'';
+  try{
+    const res=await fetch('https://api-free.deepl.com/v2/translate',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({auth_key:DEEPL_KEY,text,source_lang:'ID',target_lang:'ZH'})
+    });
+    const data=await res.json();
+    return data.translations?.[0]?.text||text;
+  }catch{return text;}
+}
+
+const TASKS=[
+  {id:'t01',sortMin:390, time:'06:30~07:00',name:'備早餐',          nameId:'Siapkan sarapan',                          noteZh:'麥片泡30分以上',                        noteId:'Rendam oatmeal minimal 30 menit',                    req:false},
+  {id:'t02',sortMin:420, time:'07:00~07:40',name:'叫阿嬤起床盥洗',  nameId:'Bangunkan nenek, cuci muka',               noteZh:'刷牙後喝溫開水後回床上按摩',            noteId:'Minum air hangat setelah gosok gigi',               req:false},
+  {id:'t03',sortMin:460, time:'07:40~08:10',name:'吃早餐',          nameId:'Sarapan',                                  noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t04',sortMin:461, time:'07:40~08:10',name:'吃藥（早）',      nameId:'Minum obat (pagi)',                        noteZh:'早餐後服藥',                            noteId:'Minum obat setelah sarapan',                        req:true},
+  {id:'t18m',sortMin:462,time:'07:40~08:10',name:'量血壓（早）',    nameId:'Ukur tekanan darah (pagi)',                noteZh:'早餐前量血壓，記錄收縮壓/舒張壓/脈搏',  noteId:'Sebelum sarapan, catat sistol/diastol/nadi',        req:true,isBP:true,slot:'morning'},
+  {id:'t05',sortMin:490, time:'08:10~08:40',name:'帶阿嬤去市場買菜',nameId:'Antar nenek ke pasar',                    noteZh:'如下雨改室內運動或按摩',                noteId:'Jika hujan, ganti olahraga',                        req:false},
+  {id:'t06',sortMin:520, time:'08:40~09:00',name:'散步運動',        nameId:'Jalan kaki / olahraga',                   noteZh:'步行至據點，如下雨改室內運動',          noteId:'Jika hujan, min. 30 menit dalam ruangan',           req:true},
+  {id:'t07',sortMin:540, time:'09:00~12:30',name:'整理家務、休息、備餐',nameId:'Bersih rumah, istirahat, siapkan makan siang',noteZh:'',noteId:'',                                                                                    req:false},
+  {id:'t08',sortMin:750, time:'12:30~12:40',name:'接阿嬤回家午睡',  nameId:'Jemput nenek, tidur siang',               noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t10',sortMin:760, time:'12:40~15:30',name:'整理家務',        nameId:'Bersih-bersih rumah',                     noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t09',sortMin:810, time:'13:30~13:40',name:'帶阿嬤到據點上課',nameId:'Antar nenek ke pusat komunitas',          noteZh:'走路前往',                              noteId:'Jalan kaki',                                        req:false},
+  {id:'t11',sortMin:930, time:'15:30~16:30',name:'接阿嬤陪走路運動',nameId:'Jemput nenek, olahraga jalan kaki',       noteZh:'如下雨改室內運動至少30分',              noteId:'Jika hujan, min. 30 menit',                         req:false},
+  {id:'t12',sortMin:990, time:'16:30~17:30',name:'備晚餐',          nameId:'Siapkan makan malam',                     noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t13',sortMin:1050,time:'17:30~18:30',name:'晚餐',            nameId:'Makan malam',                             noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t14',sortMin:1051,time:'17:30~18:30',name:'吃藥（晚）',      nameId:'Minum obat (malam)',                      noteZh:'晚餐後服藥',                            noteId:'Minum obat setelah makan malam',                    req:true},
+  {id:'t15',sortMin:1110,time:'18:30~20:00',name:'休息看電視、學中文',nameId:'Istirahat, TV, belajar Mandarin',       noteZh:'',noteId:'',                                                                                             req:false},
+  {id:'t16',sortMin:1200,time:'20:00~20:30',name:'洗澡',            nameId:'Bantu nenek mandi',                       noteZh:'冬天天氣很冷時改晚餐前洗澡',            noteId:'Cuaca dingin: mandi dipindah sebelum makan malam',  req:false},
+  {id:'t17',sortMin:1230,time:'20:30~21:30',name:'按摩',            nameId:'Pijat nenek',                             noteZh:'至少1小時',                             noteId:'Minimal 1 jam',                                     req:true},
+  {id:'t18e',sortMin:1260,time:'21:00~21:30',name:'量血壓（晚）',   nameId:'Ukur tekanan darah (malam)',              noteZh:'睡前量血壓，記錄收縮壓/舒張壓/脈搏',   noteId:'Sebelum tidur, catat sistol/diastol/nadi',          req:true,isBP:true,slot:'evening'},
+  {id:'t19',sortMin:1290,time:'21:30',       name:'就寢協助',       nameId:'Waktu tidur',                             noteZh:'夜間協助換尿布，不能讓阿嬤獨自行動',   noteId:'Bantu ganti pampers malam; nenek tidak boleh bergerak sendiri',req:false},
+  {id:'t99',sortMin:1440,time:'',            name:'每日總結',       nameId:'Ringkasan Harian',                        noteZh:'今天有什麼特別的事嗎？請記錄下來',     noteId:'Ada yang ingin diceritakan hari ini?',              req:false,isSummary:true},
+];
+
+function dk(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function showPg(id){document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.getElementById(id).classList.add('on');window.scrollTo(0,0)}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+function spinHtml(){return'<div class="loading"><div class="spin"></div><br>載入中…</div>'}
+function parsePhotos(r){if(!r)return[];try{return JSON.parse(r);}catch{return[];}}
+function bpStHtml(s,d){if(!s||!d)return'';let c='bp-ok',l='正常範圍';if(s>=140||d>=90){c='bp-hi';l='⚠ 血壓偏高';}else if(s<90||d<60){c='bp-lo';l='⚠ 血壓偏低';}return`<div class="bp-st ${c}">${l}　${s}/${d} mmHg</div>`}
+function phKey(){return dk(selDate)+'_'+curTid}
+
+async function fetchT(d){const k=dk(d);if(tCache[k])return tCache[k];const{data}=await db.from('task_records').select('*').eq('date',k);tCache[k]=data||[];return tCache[k]}
+async function fetchBP(d){const k=dk(d);if(bpCache[k])return bpCache[k];const{data}=await db.from('bp_records').select('*').eq('date',k);bpCache[k]=data||[];return bpCache[k]}
+function getTs(recs,id){return recs.find(r=>r.task_id===id)||{task_id:id,done:false,note:'',photos:'[]'}}
+function getBPs(recs,slot){return recs.find(r=>r.slot===slot)||null}
+
+// LOGIN
+async function doLogin(){
+  const u=document.getElementById('li-u').value.trim().toLowerCase();
+  const p=document.getElementById('li-p').value;
+  const err=document.getElementById('l-err');
+  err.textContent='驗證中…';
+  const{data,error}=await db.from('users').select('*').eq('username',u).eq('password_hash',p).single();
+  if(error||!data){err.textContent='❌ 帳號或密碼錯誤';return;}
+  curUser={username:data.username,role:data.role};
+  err.textContent='';
+  document.getElementById('li-p').value='';
+  document.getElementById('cal-sub').textContent=data.role==='employer'?'雇主檢視模式 👁':'看護填寫模式 ✍️';
+  showPg('pg-cal');
+  loadCalSum();renderCal();
+}
+function doLogout(){
+  curUser=null;
+  Object.keys(tCache).forEach(k=>delete tCache[k]);
+  Object.keys(bpCache).forEach(k=>delete bpCache[k]);
+  Object.keys(photoStore).forEach(k=>delete photoStore[k]);
+  document.getElementById('li-u').value='';
+  showPg('pg-login');
+}
+document.getElementById('li-p').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// CALENDAR
+async function loadCalSum(){
+  const recs=await fetchT(today);
+  const miss=TASKS.filter(t=>t.req&&!getTs(recs,t.id).done).length;
+  const done=TASKS.filter(t=>getTs(recs,t.id).done).length;
+  document.getElementById('sum-miss').textContent=miss;
+  document.getElementById('sum-done').textContent=`${done}/${TASKS.length}`;
+  const ae=document.getElementById('cal-alert');
+  if(miss>0){
+    const names=TASKS.filter(t=>t.req&&!getTs(recs,t.id).done).map(t=>t.name).join('、');
+    ae.innerHTML=`<div class="ab warn"><div class="ab-txt warn"><strong>⚠ 今日必要工作未完成</strong>${names}</div></div>`;
+  }else{
+    ae.innerHTML=`<div class="ab good"><div class="ab-txt good"><strong>✅ 今日必要工作全部完成！</strong></div></div>`;
+  }
+}
+async function renderCal(){
+  document.getElementById('cal-m').textContent=`${cYear}年 ${MN[cMonth]}`;
+  const el=document.getElementById('cal-days');el.innerHTML='';
+  const first=new Date(cYear,cMonth,1).getDay(),total=new Date(cYear,cMonth+1,0).getDate();
+  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cday empty';el.appendChild(e);}
+  const dayDivs={};
+  for(let d=1;d<=total;d++){
+    const dt=new Date(cYear,cMonth,d);
+    const isT=dk(dt)===dk(today),isFut=dt>today&&!isT;
+    const div=document.createElement('div');
+    div.className='cday'+(isT?' today':'');
+    div.innerHTML=`<span class="dn">${d}</span><div class="ddots" id="dots-${d}"></div>`;
+    if(!isFut)div.onclick=()=>gotoTasks(dt);
+    el.appendChild(div);
+    if(!isFut)dayDivs[d]=dt;
+  }
+  const mFrom=`${cYear}-${String(cMonth+1).padStart(2,'0')}-01`;
+  const mTo=`${cYear}-${String(cMonth+1).padStart(2,'0')}-${String(total).padStart(2,'0')}`;
+  const{data}=await db.from('task_records').select('date,task_id,done').gte('date',mFrom).lte('date',mTo);
+  const byDate={};
+  (data||[]).forEach(r=>{if(!byDate[r.date])byDate[r.date]=[];byDate[r.date].push(r);});
+  Object.keys(dayDivs).forEach(d=>{
+    const dt=dayDivs[d],dateStr=dk(dt),isT=dk(dt)===dk(today);
+    const recs=byDate[dateStr]||[];
+    const hasMiss=TASKS.filter(t=>t.req).some(t=>!recs.find(r=>r.task_id===t.id&&r.done));
+    const hasDone=recs.some(r=>r.done);
+    const dotsEl=document.getElementById(`dots-${d}`);if(!dotsEl)return;
+    let dotHtml='';
+    if(hasMiss)dotHtml+=`<div class="dot dot-o"></div>`;
+    if(hasDone)dotHtml+=`<div class="dot dot-t"></div>`;
+    dotsEl.innerHTML=dotHtml;
+    if(hasMiss&&!isT){const dnEl=dotsEl.previousElementSibling;if(dnEl)dnEl.style.color='#E07020';}
+  });
+  (data||[]).forEach(r=>{if(!tCache[r.date])tCache[r.date]=[];if(!tCache[r.date].find(x=>x.task_id===r.task_id))tCache[r.date].push(r);});
+}
+function chMonth(d){cMonth+=d;if(cMonth>11){cMonth=0;cYear++;}if(cMonth<0){cMonth=11;cYear--;}renderCal();}
+
+// TASKS
+async function gotoTasks(dt){
+  selDate=dt||new Date(today);
+  const m=selDate.getMonth(),day=selDate.getDate();
+  document.getElementById('t-title').textContent=`${MN[m]}${day}日 任務`;
+  document.getElementById('t-sub').textContent=`Tugas ${day}/${m+1}/${selDate.getFullYear()}`;
+  showPg('pg-tasks');
+  document.getElementById('tasks-wrap').innerHTML=spinHtml();
+  const recs=await fetchT(selDate),bpRecs=await fetchBP(selDate);
+  renderTasks(recs,bpRecs);
+}
+function renderTasks(recs,bpRecs){
+  const miss=TASKS.filter(t=>t.req&&!getTs(recs,t.id).done);
+  let h='';
+  if(isEmp())h+=`<div class="ro-bar">👁 雇主檢視模式 — 僅供查看</div>`;
+  if(miss.length>0){
+    h+=`<div class="tl-alert"><div class="tl-at">⚠ 必要工作未完成 (${miss.length}項)</div>`;
+    miss.forEach(t=>{h+=`<div class="tl-ai">${t.name}</div>`;});
+    h+=`</div>`;
+  }
+  TASKS.forEach(t=>{
+    const ts=getTs(recs,t.id);
+    const bpd=t.isBP?getBPs(bpRecs,t.slot):null;
+    const photos=parsePhotos(ts.photos);
+    const dc=ts.done?'done':'';
+    const tc=t.isSummary?'summary':t.req?'req':'norm';
+    let badges='';
+    if(t.req)badges+=`<span class="bdg b-req">必要</span>`;
+    if(t.isSummary)badges+=`<span class="bdg b-sum">📝 日記</span>`;
+    if(ts.done)badges+=`<span class="bdg b-done">✓ 完成</span>`;
+    if(t.isBP&&bpd)badges+=`<span class="bdg b-bp">💜 ${bpd.systolic}/${bpd.diastolic}</span>`;
+    if(ts.note)badges+=`<span class="bdg b-note">備註</span>`;
+    if(photos.length)badges+=`<span class="bdg b-photo">📷 ${photos.length}</span>`;
+    h+=`<div class="tc ${tc} ${dc}" onclick="gotoDetail('${t.id}')">
+      <div class="ti">
+        <div class="tck"><span class="tm">✓</span></div>
+        <div class="tb">
+          <div class="tn">${t.name}</div>
+          <div class="tni">${t.nameId}</div>
+          ${t.time?`<div class="tt">${t.time}</div>`:''}
+          ${badges?`<div class="tbdg">${badges}</div>`:''}
+        </div>
+        <span class="tarr">›</span>
+      </div>
+    </div>`;
+  });
+  document.getElementById('tasks-wrap').innerHTML=h;
+}
+
+// DETAIL
+async function gotoDetail(tid){
+  curTid=tid;pendingDone=null;
+  const t=TASKS.find(x=>x.id===tid);
+  document.getElementById('d-title').textContent=t.name;
+  document.getElementById('d-sub').textContent=t.nameId;
+  showPg('pg-detail');
+  document.getElementById('det-wrap').innerHTML=spinHtml();
+  const recs=await fetchT(selDate),ts=getTs(recs,tid);
+  const bpRecs=await fetchBP(selDate);
+  const ro=isEmp();
+  const k=phKey();
+  if(photoStore[k]===undefined)photoStore[k]=[...parsePhotos(ts.photos)];
+  let h='';
+
+  // Info
+  h+=`<div class="dc"><div class="ds">
+    ${t.req?`<div class="req-chip">⚑ 每日必要工作</div>`:''}
+    ${t.isSummary?`<div class="sum-chip">📝 每日總結</div>`:''}
+    <div class="dtn">${t.name}</div>
+    ${t.time?`<div class="dtime">🕐 ${t.time}</div>`:''}
+    <div style="font-size:13px;color:var(--muted);margin-top:3px;font-style:italic">${t.nameId}</div>
+    ${t.noteZh?`<div class="dnote-cn">${t.noteZh}</div>`:''}
+    ${t.noteId?`<div class="dnote-id">${t.noteId}</div>`:''}
+  </div></div>`;
+
+  // BP
+  if(t.isBP){
+    const bpd=getBPs(bpRecs,t.slot);
+    const sl=t.slot==='morning'?'🌅 早上':'🌙 晚上';
+    h+=`<div class="dc"><div class="ds">
+      <div class="dl">血壓數值記錄</div>
+      <div class="bp-box">
+        <div class="bp-title">${sl}量測</div>
+        <div class="bp-row">
+          <div class="bpf"><label>收縮壓（高）</label><input class="bpi" id="bp-sys" type="number" placeholder="120" value="${bpd?bpd.systolic:120}" min="60" max="250" ${ro?'disabled':''}></div>
+          <div class="bp-unit">/</div>
+          <div class="bpf"><label>舒張壓（低）</label><input class="bpi" id="bp-dia" type="number" placeholder="80" value="${bpd?bpd.diastolic:80}" min="40" max="150" ${ro?'disabled':''}></div>
+          <div class="bp-unit">mmHg</div>
+        </div>
+        <div style="margin-top:9px">
+          <div class="bpf" style="max-width:140px"><label>脈搏（次/分）</label><input class="bpi" id="bp-pul" type="number" placeholder="70" value="${bpd?bpd.pulse:70}" min="30" max="200" ${ro?'disabled':''}></div>
+        </div>
+        ${bpd?`<div class="bp-ts">📍 記錄時間：${new Date(bpd.recorded_at).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>${bpStHtml(bpd.systolic,bpd.diastolic)}`:`<div style="font-size:13px;color:var(--muted);margin-top:8px">尚未記錄</div>`}
+      </div>
+      ${!ro?`<button class="bp-save" onclick="saveBP('${t.slot}')">💾 儲存血壓數值</button>`:''}
+    </div></div>`;
+  }
+
+  // Done toggle (not for summary — summary just needs note)
+  if(!t.isSummary){
+    if(!ro){
+      h+=`<div class="dc"><div class="ds">
+        <div class="dl">完成狀態</div>
+        <div class="dtog">
+          <button class="d-btn ${ts.done?'yes':''}" id="btn-y" onclick="setDone(true)">✓ 已完成</button>
+          <button class="d-btn ${!ts.done?'no':''}" id="btn-n" onclick="setDone(false)">✕ 未完成</button>
+        </div>
+      </div></div>`;
+    }else{
+      h+=`<div class="dc"><div class="ds">
+        <div class="dl">完成狀態</div>
+        <div style="font-size:16px;font-weight:600;color:${ts.done?'var(--teal)':'var(--red)'}">${ts.done?'✓ 已完成':'✕ 未完成'}</div>
+      </div></div>`;
+    }
+  }
+
+  // Note / Summary
+  const noteLabel=t.isSummary?'今日總結記錄':'備註說明';
+  const notePlaceholder=t.isSummary?'今天阿嬤的狀況如何？有什麼特別的事嗎？用印尼文也可以…':'輸入備註說明…';
+  h+=`<div class="dc"><div class="ds">
+    <div class="dl">${noteLabel}</div>
+    ${ro
+      ?`<div class="ro-note" id="ro-note-orig">${ts.note||'（無內容）'}</div>
+        <div id="trans-area"></div>`
+      :`<textarea class="note-ta" id="note-ta" placeholder="${notePlaceholder}">${ts.note||''}</textarea>`
+    }
+  </div></div>`;
+
+  // Photos
+  h+=`<div class="dc"><div class="ds">
+    <div class="dl">照片記錄</div>
+    ${!ro?`<input type="file" id="ph-input" accept="image/*" multiple onchange="handlePhotos(event)">
+    <div class="ph-area" onclick="document.getElementById('ph-input').click()">
+      <div style="font-size:28px">📷</div>
+      <div class="ph-area-txt">點擊上傳照片（可多張）</div>
+    </div>`:''}
+    <div class="ph-prev" id="ph-prev"></div>
+    ${photoStore[k].length===0&&ro?'<div style="font-size:14px;color:var(--muted)">（無照片）</div>':''}
+  </div></div>`;
+
+  if(!ro)h+=`<button class="save-btn" onclick="saveDetail()">💾 儲存記錄</button>`;
+  document.getElementById('det-wrap').innerHTML=h;
+  renderPhotoPreview();
+
+  // Auto-translate note for employer
+  if(ro&&ts.note&&ts.note.trim()){
+    const ta=document.getElementById('trans-area');
+    if(ta){
+      ta.innerHTML=`<div class="trans-box"><div class="trans-label">🔄 中文翻譯（翻譯中…）</div></div>`;
+      translate(ts.note).then(result=>{
+        ta.innerHTML=`<div class="trans-box"><div class="trans-label">🔄 中文翻譯</div>${result}</div>`;
+      });
+    }
+  }
+}
+
+function setDone(v){
+  pendingDone=v;
+  document.getElementById('btn-y').className='d-btn'+(v?' yes':'');
+  document.getElementById('btn-n').className='d-btn'+(!v?' no':'');
+}
+function handlePhotos(e){
+  const k=phKey();
+  Array.from(e.target.files).forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{photoStore[k].push(ev.target.result);renderPhotoPreview();};
+    r.readAsDataURL(f);
+  });
+  e.target.value='';
+}
+function delPhoto(i){photoStore[phKey()].splice(i,1);renderPhotoPreview();}
+function renderPhotoPreview(){
+  const k=phKey(),photos=photoStore[k]||[],ro=isEmp();
+  const el=document.getElementById('ph-prev');if(!el)return;
+  el.innerHTML=photos.map((src,i)=>`<div class="ph-wrap"><img class="ph-img" src="${src}">${!ro?`<button class="ph-del" onclick="delPhoto(${i})">×</button>`:''}</div>`).join('');
+}
+async function saveDetail(){
+  const t=TASKS.find(x=>x.id===curTid);
+  const recs=await fetchT(selDate),ts=getTs(recs,curTid);
+  const done=t.isSummary?true:(pendingDone!==null?pendingDone:ts.done);
+  const note=document.getElementById('note-ta')?.value??ts.note??'';
+  const k=phKey();
+  const photos=JSON.stringify(photoStore[k]||[]);
+  const dateStr=dk(selDate);
+  const{error}=await db.from('task_records').upsert(
+    {date:dateStr,task_id:curTid,done,note,photos,updated_at:new Date().toISOString()},
+    {onConflict:'date,task_id'}
+  );
+  if(error){showToast('❌ 儲存失敗：'+error.message);return;}
+  delete tCache[dateStr];delete photoStore[k];pendingDone=null;
+  showToast('✅ 記錄已儲存');
+  setTimeout(()=>goBack('pg-tasks'),800);
+}
+async function saveBP(slot){
+  const sys=parseInt(document.getElementById('bp-sys')?.value)||null;
+  const dia=parseInt(document.getElementById('bp-dia')?.value)||null;
+  const pul=parseInt(document.getElementById('bp-pul')?.value)||null;
+  if(!sys||!dia){showToast('⚠ 請輸入收縮壓和舒張壓');return;}
+  const dateStr=dk(selDate);
+  const{error}=await db.from('bp_records').upsert(
+    {date:dateStr,slot,systolic:sys,diastolic:dia,pulse:pul,recorded_at:new Date().toISOString()},
+    {onConflict:'date,slot'}
+  );
+  if(error){showToast('❌ 儲存失敗：'+error.message);return;}
+  delete bpCache[dateStr];
+  const tid=slot==='morning'?'t18m':'t18e';
+  await db.from('task_records').upsert({date:dateStr,task_id:tid,done:true,note:'',photos:'[]',updated_at:new Date().toISOString()},{onConflict:'date,task_id'});
+  delete tCache[dateStr];
+  showToast('✅ 血壓已記錄');
+  setTimeout(()=>gotoDetail(curTid),700);
+}
+
+// BACK
+async function goBack(target){
+  pendingDone=null;
+  if(target==='pg-tasks'){
+    showPg('pg-tasks');
+    document.getElementById('tasks-wrap').innerHTML=spinHtml();
+    const recs=await fetchT(selDate),bpRecs=await fetchBP(selDate);
+    renderTasks(recs,bpRecs);
+  }else if(target==='pg-cal'){
+    showPg('pg-cal');loadCalSum();renderCal();
+  }else{showPg(target);}
+}
+
+// BP HISTORY
+function showBP(){showPg('pg-bp');renderBPH();}
+async function renderBPH(){
+  document.getElementById('bph-wrap').innerHTML=spinHtml();
+  const days=bpRange==='7'?7:30;
+  const from=new Date(today);from.setDate(from.getDate()-(days-1));
+  const{data}=await db.from('bp_records').select('*').gte('date',dk(from)).lte('date',dk(today)).order('date',{ascending:false});
+  const recs=data||[];
+  const sys=recs.filter(r=>r.systolic).map(r=>r.systolic);
+  const dia=recs.filter(r=>r.diastolic).map(r=>r.diastolic);
+  const pul=recs.filter(r=>r.pulse).map(r=>r.pulse);
+  const avg=a=>a.length?Math.round(a.reduce((s,v)=>s+v,0)/a.length):null;
+  const mx=a=>a.length?Math.max(...a):null;
+  const sA=avg(sys),dA=avg(dia),pA=avg(pul),sM=mx(sys);
+  let h=`<div class="tabs">
+    <button class="tab ${bpRange==='7'?'on':''}" onclick="bpRange='7';renderBPH()">最近7天</button>
+    <button class="tab ${bpRange==='30'?'on':''}" onclick="bpRange='30';renderBPH()">最近30天</button>
+  </div>
+  <div class="sg">
+    <div class="sc2"><div class="sc2-l">平均收縮壓</div><div class="sc2-n ${sA&&sA>=140?'warn':'ok'}">${sA||'—'}</div><div class="sc2-s">mmHg</div></div>
+    <div class="sc2"><div class="sc2-l">平均舒張壓</div><div class="sc2-n">${dA||'—'}</div><div class="sc2-s">mmHg</div></div>
+    <div class="sc2"><div class="sc2-l">平均脈搏</div><div class="sc2-n ok">${pA||'—'}</div><div class="sc2-s">次/分</div></div>
+    <div class="sc2"><div class="sc2-l">最高收縮壓</div><div class="sc2-n ${sM&&sM>=140?'warn':'ok'}">${sM||'—'}</div><div class="sc2-s">${sM&&sM>=140?'⚠ 偏高':'mmHg'}</div></div>
+  </div>`;
+  if(recs.length>1){
+    const bd={};recs.forEach(r=>{if(!bd[r.date])bd[r.date]={};bd[r.date][r.slot]=r;});
+    const dates=Object.keys(bd).sort().slice(-14);
+    const W=Math.max(300,dates.length*30),H=110,pd=12;
+    const av=dates.flatMap(d=>['morning','evening'].map(s=>bd[d][s]?.systolic).filter(Boolean));
+    const mn=av.length?Math.min(...av)-15:60,mx2=av.length?Math.max(...av)+15:180;
+    const yp=v=>pd+(H-2*pd)*(1-(v-mn)/(mx2-mn));
+    const xp=(i,n)=>24+(W-48)*i/(n-1||1);
+    const mP=[],eP=[];
+    dates.forEach((d,i)=>{const x=xp(i,dates.length);if(bd[d].morning?.systolic)mP.push([x,yp(bd[d].morning.systolic)]);if(bd[d].evening?.systolic)eP.push([x,yp(bd[d].evening.systolic)]);});
+    const pl=pts=>pts.length>1?pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' '):'';
+    const y140=yp(140);
+    h+=`<div class="chart-card"><div class="chart-ttl">收縮壓趨勢（最近${dates.length}天）</div>
+      <div style="display:flex;gap:14px;font-size:11px;margin-bottom:9px"><span style="color:var(--teal)">● 早</span><span style="color:var(--purple)">● 晚</span><span style="color:var(--red);margin-left:auto">— 140高血壓線</span></div>
+      <div style="overflow-x:auto"><svg width="${W}" height="${H}" style="display:block">
+        <line x1="24" y1="${y140.toFixed(1)}" x2="${W-10}" y2="${y140.toFixed(1)}" stroke="#E24B4A" stroke-width="1.2" stroke-dasharray="5,3" opacity=".7"/>
+        ${mP.length>1?`<path d="${pl(mP)}" fill="none" stroke="#1D9E75" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+        ${eP.length>1?`<path d="${pl(eP)}" fill="none" stroke="#534AB7" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+        ${mP.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="#1D9E75"/>`).join('')}
+        ${eP.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="#534AB7"/>`).join('')}
+      </svg></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:4px 24px 0"><span>${dates[0]?.slice(5)}</span><span>${dates[dates.length-1]?.slice(5)}</span></div>
+    </div>`;
+  }
+  if(!recs.length){h+=`<div class="empty"><div class="empty-ico">🩺</div><div>尚無血壓記錄</div></div>`;}
+  else{
+    const bd={};recs.forEach(r=>{if(!bd[r.date])bd[r.date]=[];bd[r.date].push(r);});
+    Object.keys(bd).sort().reverse().forEach(d=>{
+      h+=`<div class="hc"><div class="hc-date">📅 ${d}</div>`;
+      ['morning','evening'].forEach(slot=>{
+        const e=bd[d].find(r=>r.slot===slot);if(!e)return;
+        const sl=slot==='morning'?'早':'晚';
+        let c='bp-ok';if(e.systolic>=140||e.diastolic>=90)c='bp-hi';else if(e.systolic<90||e.diastolic<60)c='bp-lo';
+        const t=new Date(e.recorded_at);
+        const ts=`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+        h+=`<div class="he"><div class="he-slot">${sl}</div><div class="he-vals"><div class="he-main">${e.systolic}/<span style="font-size:14px">${e.diastolic}</span> <span style="font-size:12px;color:var(--muted)">mmHg</span></div>${e.pulse?`<div class="he-pulse">脈搏 ${e.pulse} 次/分</div>`:''}</div><div style="text-align:right"><div class="bdg ${c}">${c==='bp-hi'?'偏高⚠':c==='bp-lo'?'偏低':'正常'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${ts}</div></div></div>`;
+      });
+      h+=`</div>`;
+    });
+  }
+  document.getElementById('bph-wrap').innerHTML=h;
+}
+
+// LEDGER
+function showLedger(){showPg('pg-ledger');renderLedger();}
+async function renderLedger(){
+  document.getElementById('ldg-wrap').innerHTML=spinHtml();
+  const{data}=await db.from('ledger').select('*').order('created_at',{ascending:false});
+  const recs=data||[];
+  const balance=recs.reduce((s,r)=>r.type==='income'?s+r.amount:s-r.amount,0);
+  const ro=isEmp();
+  let h=`<div class="bal-card">
+    <div class="bal-label">目前餘額 Saldo</div>
+    <div class="bal-amount">$${balance.toLocaleString()}</div>
+    <div class="bal-sub">${balance>=0?'充足':'⚠ 不足'}</div>
+  </div>`;
+
+  // Entry form
+  if(!ro){
+    h+=`<div class="ldg-form">
+      <div class="ldg-type-row">
+        <button class="type-btn exp ${ledgerType==='expense'?'on':''}" onclick="setLedgerType('expense')">💸 支出</button>
+        <button class="type-btn inc ${ledgerType==='income'?'on':''}" onclick="setLedgerType('income')">💰 收入</button>
+      </div>
+      <div class="ldg-row">
+        <input class="ldg-input" id="ldg-item" type="text" placeholder="品名 / Nama barang">
+        <input class="ldg-input ldg-amt" id="ldg-amt" type="number" placeholder="金額" min="0">
+      </div>
+      <input class="ldg-input" id="ldg-note" type="text" placeholder="備註（可選）" style="width:100%;margin-bottom:10px">
+      <button class="ldg-save" onclick="saveLedger()">✓ 新增記錄</button>
+    </div>`;
+  }else{
+    h+=`<div class="ro-bar">👁 雇主檢視模式 — 僅供查看</div>`;
+  }
+
+  if(!recs.length){h+=`<div class="empty"><div class="empty-ico">💰</div><div>尚無記帳記錄</div></div>`;}
+  else{
+    recs.forEach(r=>{
+      const isInc=r.type==='income';
+      const d=new Date(r.created_at);
+      const dstr=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      h+=`<div class="ldg-item"><div class="ldg-item-inner">
+        <div class="ldg-icon ${r.type}">${isInc?'💰':'💸'}</div>
+        <div class="ldg-info">
+          <div class="ldg-name">${r.item}</div>
+          <div class="ldg-meta">${dstr}${r.note?' · '+r.note:''}</div>
+        </div>
+        <div class="ldg-val ${r.type}">${isInc?'+':'-'}$${r.amount.toLocaleString()}</div>
+        ${!ro?`<button class="ldg-del" onclick="delLedger('${r.id}')">🗑</button>`:''}
+      </div></div>`;
+    });
+  }
+  document.getElementById('ldg-wrap').innerHTML=h;
+}
+function setLedgerType(t){
+  ledgerType=t;
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelector(`.type-btn.${t}`)?.classList.add('on');
+}
+async function saveLedger(){
+  const item=document.getElementById('ldg-item')?.value.trim();
+  const amt=parseInt(document.getElementById('ldg-amt')?.value)||0;
+  const note=document.getElementById('ldg-note')?.value.trim()||'';
+  if(!item){showToast('⚠ 請輸入品名');return;}
+  if(!amt){showToast('⚠ 請輸入金額');return;}
+  const{error}=await db.from('ledger').insert({type:ledgerType,item,amount:amt,note,date:dk(today)});
+  if(error){showToast('❌ 儲存失敗：'+error.message);return;}
+  showToast('✅ 已新增');
+  renderLedger();
+}
+async function delLedger(id){
+  if(!confirm('確定刪除這筆記錄？'))return;
+  await db.from('ledger').delete().eq('id',id);
+  showToast('🗑 已刪除');
+  renderLedger();
+}
+
+document.getElementById('li-u').focus();
+</script>
+</body>
+</html>
